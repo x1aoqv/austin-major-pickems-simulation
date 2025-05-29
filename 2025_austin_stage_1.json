@@ -1,0 +1,92 @@
+{
+  "systems": {
+    "valve": "lambda x: x",
+    "hltv": "lambda x: x"
+  },
+  "sigma": {
+    "valve": 600,
+    "hltv": 1600
+  },
+  "teams": {
+    "Complexity": {
+      "seed": 1,
+      "valve": 1542,
+      "hltv": 125
+    },
+    "HEROIC": {
+      "seed": 2,
+      "valve": 1424,
+      "hltv": 117
+    },
+    "B8": {
+      "seed": 3,
+      "valve": 1227,
+      "hltv": 48
+    },
+    "BetBoom": {
+      "seed": 4,
+      "valve": 1120,
+      "hltv": 30
+    },
+    "TYLOO": {
+      "seed": 5,
+      "valve": 1117,
+      "hltv":39
+    },
+    "Lynn Vision": {
+      "seed": 6,
+      "valve": 1114,
+      "hltv": 32
+    },
+    "Wildcard": {
+      "seed": 7,
+      "valve": 638,
+      "hltv": 44
+    },
+    "FlyQuest": {
+      "seed": 8,
+      "valve": 1094,
+      "hltv": 49
+    },
+    "OG": {
+      "seed": 9,
+      "valve": 1082,
+      "hltv": 22
+    },
+    "Chinggis Warriors": {
+      "seed": 10,
+      "valve": 1077,
+      "hltv": 24
+    },
+    "Imperial": {
+      "seed": 11,
+      "valve": 1071,
+      "hltv": 21
+    },
+    "Nemiga": {
+      "seed": 12,
+      "valve": 1060,
+      "hltv": 20
+    },
+    "NRG": {
+      "seed": 13,
+      "valve": 1030,
+      "hltv": 26
+    },
+    "Legacy": {
+      "seed": 14,
+      "valve": 967,
+      "hltv": 39
+    },
+    "Metizport": {
+      "seed": 15,
+      "valve": 964,
+      "hltv": 15
+    },
+    "Fluxo": {
+      "seed": 16,
+      "valve": 902,
+      "hltv": 19
+    }
+  }
+}

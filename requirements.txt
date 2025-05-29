@@ -1,0 +1,10 @@
+# 依赖包列表
+# 参考项目: https://github.com/ndunnett/major-pickems-sim
+# 规则参考: https://github.com/ValveSoftware/counter-strike_rules_and_regs
+# 排名系统: https://github.com/ValveSoftware/counter-strike_regional_standings
+
+numpy>=1.21.0
+pandas>=1.3.0
+tqdm>=4.62.0
+typing-extensions>=4.0.0
+argparse>=1.4.0
