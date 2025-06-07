@@ -1,6 +1,6 @@
 """
 CS2 Major Pick'Em 模拟器主程序
-实现：瑞士轮比赛模拟、多进程并行计算、结果统计等功能
+实现：瑞士轮比赛模拟、多进程加速、结果统计等功能
 
 主要功能：
 1. 模拟瑞士轮比赛过程
@@ -21,6 +21,8 @@ from random import random
 from statistics import median
 from time import perf_counter_ns
 from typing import TYPE_CHECKING
+import numpy as np
+import tqdm
 
 from config import VRS_WEIGHT, HLTV_WEIGHT, SIGMA, win_probability
 
@@ -32,7 +34,7 @@ if TYPE_CHECKING:
 class Team:
     """
     队伍类，存储队伍的基本信息和评分
-    
+
     Attributes:
         id: 队伍唯一标识符
         name: 队伍名称
@@ -55,7 +57,7 @@ class Team:
 class Record:
     """
     记录队伍在比赛中的表现
-    
+
     Attributes:
         wins: 胜场数
         losses: 负场数
@@ -80,7 +82,7 @@ class Record:
 class Result:
     """
     记录模拟结果
-    
+
     Attributes:
         three_zero: 3-0战绩的次数
         advanced: 3-1/3-2战绩的次数
@@ -105,10 +107,10 @@ class Result:
     def __add__(self, other: Result) -> Result:
         """
         合并两个结果记录
-        
+
         Args:
             other: 另一个结果记录
-        
+
         Returns:
             Result: 合并后的结果记录
         """
@@ -129,7 +131,7 @@ class Result:
 class SwissSystem:
     """
     瑞士轮系统
-    
+
     Attributes:
         sigma: Elo公式的sigma值
         records: 所有队伍的比赛记录
@@ -148,27 +150,29 @@ class SwissSystem:
         """
         计算队伍的种子排名
         基于：胜负场差、Buchholz难度、初始种子排名
-        
+
         Args:
             team: 目标队伍
-        
+
         Returns:
             tuple[int, int, int]: (胜负场差, Buchholz难度, 种子排名)
         """
-        return (
-            -self.records[team].diff,
-            -sum(self.records[opp].diff for opp in self.records[team].teams_faced),
-            team.seed,
-        )
+        # 计算Buchholz分数（所有对手的胜负场差之和）
+        buchholz = sum(self.records[opp].diff for opp in self.records[team].teams_faced)
+
+        # 第一轮使用初始种子排名
+        if not self.records[team].teams_faced:
+            return (0, 0, team.seed)
+        else:
+            # 中期使用计算出的排名
+            # 1. 首先按胜负场差分组（1-0组、0-1组等）
+            # 2. 在组内按Buchholz分数从高到低排序
+            # 3. 同Buchholz分数时，按初始种子排名排序
+            return (-self.records[team].diff, -buchholz, team.seed)
 
     def simulate_match(self, team_a: Team, team_b: Team) -> None:
         """
         模拟单场比赛
-        如果是晋级/淘汰赛则使用BO3，否则使用BO1
-        
-        Args:
-            team_a: 队伍A
-            team_b: 队伍B
         """
         # 判断是否为BO3
         is_bo3 = self.records[team_a].wins == 2 or self.records[team_a].losses == 2
@@ -176,13 +180,15 @@ class SwissSystem:
         # 计算单图胜率
         p = win_probability(team_a, team_b, self.sigma)
 
-        # 模拟比赛结果
+        # 生成随机数
         if is_bo3:
-            first_map = p > random()
-            second_map = p > random()
-            team_a_win = p > random() if first_map != second_map else first_map
+            random_values = np.random.random(3)
+            first_map = p > random_values[0]
+            second_map = p > random_values[1]
+            team_a_win = p > random_values[2] if first_map != second_map else first_map
         else:
-            team_a_win = p > random()
+            random_values = np.random.random(1)
+            team_a_win = p > random_values[0]
 
         # 更新队伍记录
         if team_a_win:
@@ -202,43 +208,168 @@ class SwissSystem:
                 if self.records[team].wins == 3 or self.records[team].losses == 3:
                     self.remaining.remove(team)
 
-    def simulate_round(self) -> None:
+    def simulate_round(self, round_num: int) -> None:
         """
         模拟一轮比赛
         根据当前战绩将队伍分组，并安排对阵
+
+        Args:
+            round_num: 当前轮次
         """
-        even_teams, pos_teams, neg_teams = [], [], []
+        # 按战绩分组
+        groups = {}  # 用字典存储不同战绩的组
+        for team in self.remaining:
+            diff = self.records[team].diff
+            if diff not in groups:
+                groups[diff] = []
+            groups[diff].append(team)
 
-        # 根据战绩分组
-        for team in sorted(self.remaining, key=self.seeding):
-            if self.records[team].diff > 0:
-                pos_teams.append(team)
-            elif self.records[team].diff < 0:
-                neg_teams.append(team)
-            else:
-                even_teams.append(team)
+        # 在每个组内按Buchholz分数从高到低排序，同分时按Initial Seed从低到高排序
+        for diff in groups:
+            groups[diff].sort(key=lambda t: (
+                -sum(self.records[opp].diff for opp in self.records[t].teams_faced),  # Buchholz分数从高到低
+                t.seed  # 同分时按Initial Seed从低到高排序（因为Initial Seed越小表示排名越高）
+            ))
 
-        # 第一轮特殊处理（1-9, 2-10, 3-11等）
-        if len(even_teams) == len(self.records):
-            for a, b in zip(even_teams, even_teams[len(even_teams) // 2 :]):
+        def try_match_teams(teams: list[Team], round_num: int) -> list[tuple[Team, Team]]:
+            """
+            尝试按照优先级匹配队伍，同时考虑种子排名和回避原则
+
+            Args:
+                teams: 需要匹配的队伍列表
+                round_num: 当前轮次
+
+            Returns:
+                list[tuple[Team, Team]]: 匹配结果列表
+            """
+            if not teams:
+                return []
+
+            n = len(teams)
+            if n < 2:
+                return []
+
+            # 第一轮特殊处理
+            if round_num == 1:
+                matches = []
+                # 高排名对阵低排名
+                for i in range(n // 2):
+                    matches.append((teams[i], teams[n - 1 - i]))
+                return matches
+
+            # 第二、三轮：高排名对阵低排名，但需要考虑回避原则
+            if round_num <= 3:
+                matches = []
+                used_indices = set()
+
+                # 从最高排名开始，寻找最低排名的未对阵队伍
+                for i in range(n):
+                    if i in used_indices:
+                        continue
+
+                    # 从最低排名开始寻找对手
+                    for j in range(n-1, i, -1):
+                        if j in used_indices:
+                            continue
+
+                        # 检查是否已经对阵过
+                        if teams[j] not in self.records[teams[i]].teams_faced:
+                            matches.append((teams[i], teams[j]))
+                            used_indices.add(i)
+                            used_indices.add(j)
+                            break
+
+                return matches
+
+            # 第四轮和第五轮：使用优先级模式
+            # 定义优先级匹配模式
+            priority_patterns = [
+                [(0,5), (1,4), (2,3)],  # 1v6 2v5 3v4
+                [(0,5), (1,3), (2,4)],  # 1v6 2v4 3v5
+                [(0,4), (1,5), (2,3)],  # 1v5 2v6 3v4
+                [(0,4), (1,3), (2,5)],  # 1v5 2v4 3v6
+                [(0,3), (1,5), (2,4)],  # 1v4 2v6 3v5
+                [(0,3), (1,4), (2,5)],  # 1v4 2v5 3v6
+                [(0,5), (1,2), (3,4)],  # 1v6 2v3 4v5
+                [(0,4), (1,2), (3,5)],  # 1v5 2v3 4v6
+                [(0,2), (1,5), (3,4)],  # 1v3 2v6 4v5
+                [(0,2), (1,4), (3,5)],  # 1v3 2v5 4v6
+                [(0,3), (1,2), (4,5)],  # 1v4 2v3 5v6
+                [(0,2), (1,3), (4,5)],  # 1v3 2v4 5v6
+                [(0,1), (2,5), (3,4)],  # 1v2 3v6 4v5
+                [(0,1), (2,4), (3,5)],  # 1v2 3v5 4v6
+                [(0,1), (2,3), (4,5)],  # 1v2 3v4 5v6
+            ]
+
+            # 尝试每种优先级模式
+            for pattern in priority_patterns:
+                matches = []
+                used_indices = set()
+                valid_pattern = True
+
+                for i, j in pattern:
+                    if i >= n or j >= n or i in used_indices or j in used_indices:
+                        valid_pattern = False
+                        break
+
+                    # 检查是否已经对阵过
+                    if teams[j] in self.records[teams[i]].teams_faced:
+                        valid_pattern = False
+                        break
+
+                    matches.append((teams[i], teams[j]))
+                    used_indices.add(i)
+                    used_indices.add(j)
+
+                if valid_pattern:
+                    return matches
+
+            # 如果没有找到合适的优先级模式，尝试任意匹配
+            matches = []
+            used_indices = set()
+
+            # 高排名对阵低排名
+            for i in range(n):
+                if i in used_indices:
+                    continue
+
+                for j in range(n-1, i, -1):
+                    if j in used_indices:
+                        continue
+
+                    if teams[j] not in self.records[teams[i]].teams_faced:
+                        matches.append((teams[i], teams[j]))
+                        used_indices.add(i)
+                        used_indices.add(j)
+                        break
+
+            return matches
+
+        # 第一轮特殊处理（使用初始种子排名）
+        if len(groups.get(0, [])) == len(self.records):
+            # 按初始种子排名排序
+            teams = sorted(groups[0], key=lambda t: t.seed)
+            for a, b in zip(teams, teams[len(teams) // 2 :]):
                 self.simulate_match(a, b)
         else:
-            # 每组内按种子排名安排对阵
-            for group in [pos_teams, even_teams, neg_teams]:
-                second_half = reversed(group[len(group) // 2 :])
-                for a, b in zip(group, second_half):
-                    self.simulate_match(a, b)
+            # 每组内按排名匹配
+            for diff in sorted(groups.keys(), reverse=True):
+                matches = try_match_teams(groups[diff], round_num)
+                for team_a, team_b in matches:
+                    self.simulate_match(team_a, team_b)
 
     def simulate_tournament(self) -> None:
         """模拟整个比赛阶段，直到所有队伍都完成比赛"""
-        while self.remaining:
-            self.simulate_round()
+        round_num = 1
+        while self.remaining and round_num <= 5:  # 限制最多5轮
+            self.simulate_round(round_num)
+            round_num += 1
 
 
 class Simulation:
     """
     模拟器主类
-    
+
     Attributes:
         sigma: Elo公式的sigma值
         teams: 参赛队伍集合
@@ -249,9 +380,6 @@ class Simulation:
     def __init__(self, filepath: Path) -> None:
         """
         从JSON文件加载数据并初始化模拟器
-        
-        Args:
-            filepath: JSON文件路径
         """
         with open(filepath) as file:
             data = json.load(file)
@@ -263,14 +391,14 @@ class Simulation:
                 i += 1
 
         auto_id = id_generator()
-        self.sigma = (*data["sigma"].values(),)
+        self.sigma = (SIGMA, SIGMA)
         self.teams = {
             Team(
                 id=next(auto_id),
                 name=team_k,
                 seed=team_v["seed"],
                 rating=tuple(
-                    (eval(sys_v))(team_v[sys_k])  # noqa: S307
+                    (eval(sys_v))(team_v[sys_k])
                     for sys_k, sys_v in data["systems"].items()
                 ),
             )
@@ -279,53 +407,64 @@ class Simulation:
 
     def batch(self, n: int) -> dict[Team, Result]:
         """
-        运行n次模拟并返回结果
-        
-        Args:
-            n: 模拟次数
-        
-        Returns:
-            dict[Team, Result]: 每个队伍的结果统计
+        运行n次模拟
         """
         results = {team: Result.new() for team in self.teams}
         all_combinations = {}
 
-        for sim_id in range(n):
-            ss = SwissSystem(
-                sigma=self.sigma,
-                records={team: Record.new() for team in self.teams},
-                remaining=set(self.teams),
-            )
+        # 预生成随机数
+        random_values = np.random.random(n * 10)  # 预生成足够的随机数
+        random_index = 0
 
-            ss.simulate_tournament()
+        # 添加进度条
+        with tqdm.tqdm(
+            total=n,
+            desc="模拟进度",
+            ncols=100,
+            bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]',
+            position=0,
+            leave=True
+        ) as pbar:
+            for sim_id in range(n):
+                ss = SwissSystem(
+                    sigma=self.sigma,
+                    records={team: Record.new() for team in self.teams},
+                    remaining=set(self.teams),
+                )
 
-            # 记录当前模拟的结果
-            three_zero_teams = []
-            advanced_teams = []
-            zero_three_teams = []
+                ss.simulate_tournament()
 
-            for team, record in ss.records.items():
-                if record.wins == 3:
-                    if record.losses == 0:
-                        results[team].three_zero += 1
-                        three_zero_teams.append(team.name)
-                    else:
-                        results[team].advanced += 1
-                        advanced_teams.append(team.name)
-                elif record.wins == 0:
-                    results[team].zero_three += 1
-                    zero_three_teams.append(team.name)
+                # 记录当前模拟的结果
+                three_zero_teams = []
+                advanced_teams = []
+                zero_three_teams = []
 
-            # 记录这次模拟的结果
-            sim_result = {
-                '3-0': sorted(three_zero_teams),
-                '3-1/3-2': sorted(advanced_teams),
-                '0-3': sorted(zero_three_teams)
-            }
+                for team, record in ss.records.items():
+                    if record.wins == 3:
+                        if record.losses == 0:
+                            results[team].three_zero += 1
+                            three_zero_teams.append(team.name)
+                        else:
+                            results[team].advanced += 1
+                            advanced_teams.append(team.name)
+                    elif record.wins == 0:
+                        results[team].zero_three += 1
+                        zero_three_teams.append(team.name)
 
-            # 记录这个组合
-            key = f"3-0: {', '.join(sim_result['3-0'])} | 3-1/3-2: {', '.join(sim_result['3-1/3-2'])} | 0-3: {', '.join(sim_result['0-3'])}"
-            all_combinations[key] = all_combinations.get(key, 0) + 1
+                # 记录这次模拟的结果
+                sim_result = {
+                    '3-0': sorted(three_zero_teams),
+                    '3-1/3-2': sorted(advanced_teams),
+                    '0-3': sorted(zero_three_teams)
+                }
+
+                # 记录这个组合
+                key = f"3-0: {', '.join(sim_result['3-0'])} | 3-1/3-2: {', '.join(sim_result['3-1/3-2'])} | 0-3: {', '.join(sim_result['0-3'])}"
+                all_combinations[key] = all_combinations.get(key, 0) + 1
+
+                # 更新进度条
+                pbar.update(1)
+                pbar.set_postfix({'当前组合数': len(all_combinations)})
 
         # 将组合结果添加到第一个队伍的结果中
         results[list(self.teams)[0]].pickem_results = all_combinations
@@ -335,29 +474,36 @@ class Simulation:
     def run(self, n: int, k: int) -> dict[Team, Result]:
         """
         使用k个进程运行n次模拟
-        
-        Args:
-            n: 总模拟次数
-            k: 进程数
-        
-        Returns:
-            dict[Team, Result]: 合并后的结果统计
         """
         # 计算每个进程的迭代次数
         iterations_per_process = n // k
         remaining_iterations = n % k
         
-        # 创建进程池
-        with Pool(k) as pool:
-            # 为每个进程分配任务
-            futures = []
-            for i in range(k):
-                # 最后一个进程处理剩余的迭代次数
-                iterations = iterations_per_process + (remaining_iterations if i == k-1 else 0)
-                futures.append(pool.apply_async(self.batch, [iterations]))
-            
-            # 获取所有结果
-            results = [future.get() for future in futures]
+        # 创建任务列表
+        tasks = []
+        for i in range(k):
+            # 最后一个进程处理剩余的迭代次数
+            iterations = iterations_per_process + (remaining_iterations if i == k-1 else 0)
+            tasks.append(iterations)
+        
+        # 创建进度条
+        with tqdm.tqdm(
+            total=n,
+            desc="模拟进度",
+            ncols=100,
+            bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]',
+            position=0,
+            leave=True
+        ) as pbar:
+            # 创建进程池
+            with Pool(k) as pool:
+                # 使用imap处理任务，这样可以实时获取结果
+                results = []
+                for result in pool.imap(self.batch, tasks):
+                    results.append(result)
+                    # 更新进度条
+                    pbar.update(iterations_per_process)
+                    pbar.set_postfix({'当前组合数': len(result[list(self.teams)[0]].pickem_results)})
 
         # 合并所有进程的结果
         def _f(acc: dict[Team, Result], results: dict[Team, Result]) -> dict[Team, Result]:
@@ -396,8 +542,8 @@ def format_results(results: dict[Team, Result], n: int, run_time: float) -> list
 
 if __name__ == "__main__":
     # 直接使用2025_austin_stage_1.json文件
-    file_path = "2025_austin_stage_1.json"
-    n_iterations = 10000000  # 增加迭代次数以获得更准确的结果
+    file_path = "2025_austin_stage_2.json"
+    n_iterations = 1000000  # 增加迭代次数以获得更准确的结果
     n_cores = max(1, cpu_count() - 1)  # 保留一个核心给系统使用
 
     # 运行模拟并打印格式化结果

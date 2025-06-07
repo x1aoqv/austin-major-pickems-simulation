@@ -13,8 +13,8 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 # 评分系统权重配置
-VRS_WEIGHT = 0.5  # Valve评分系统权重
-HLTV_WEIGHT = 0.5  # HLTV评分系统权重
+VRS_WEIGHT = 0.0  # Valve评分系统权重
+HLTV_WEIGHT = 1.0  # HLTV评分系统权重
 SIGMA = 349.2  # Valve默认sigma值，用于Elo公式计算
 
 @dataclass(frozen=True)
@@ -169,7 +169,7 @@ def load_teams(file_path: str) -> List[Team]:
 def main():
     """主函数，用于测试配置和函数"""
     # 加载队伍数据
-    file_path = "2025_austin_stage_1.json"
+    file_path = "2025_austin_stage_2.json"
     try:
         teams = load_teams(file_path)
         
