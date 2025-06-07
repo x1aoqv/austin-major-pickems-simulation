@@ -1,0 +1,92 @@
+{
+  "systems": {
+    "valve": "lambda x: x",
+    "hltv": "lambda x: x"
+  },
+  "sigma": {
+    "valve": 600,
+    "hltv": 1600
+  },
+  "teams": {
+    "Falcons": {
+      "seed": 1,
+      "valve": 1889,
+      "hltv": 496
+    },
+    "FaZe": {
+      "seed": 2,
+      "valve": 1605,
+      "hltv": 177
+    },
+    "3DMAX": {
+      "seed": 3,
+      "valve": 1578,
+      "hltv": 118
+    },
+    "Virtus.pro": {
+      "seed": 4,
+      "valve": 1445,
+      "hltv": 129
+    },
+    "paiN": {
+      "seed": 5,
+      "valve": 1220,
+      "hltv":56
+    },
+    "FURIA": {
+      "seed": 6,
+      "valve": 1452,
+      "hltv": 115
+    },
+    "MIBR": {
+      "seed": 7,
+      "valve": 1354,
+      "hltv": 96
+    },
+    "M80": {
+      "seed": 8,
+      "valve": 1025,
+      "hltv": 35
+    },
+    "HEROIC": {
+      "seed": 9,
+      "valve": 1647,
+      "hltv": 117
+    },
+    "B8": {
+      "seed": 10,
+      "valve": 1366,
+      "hltv": 48
+    },
+    "OG": {
+      "seed": 11,
+      "valve": 1200,
+      "hltv": 21
+    },
+    "BetBoom": {
+      "seed": 12,
+      "valve": 1187,
+      "hltv": 28
+    },
+    "Nemiga": {
+      "seed": 13,
+      "valve": 1143,
+      "hltv": 18
+    },
+    "Lynn Vision": {
+      "seed": 14,
+      "valve": 1273,
+      "hltv": 30
+    },
+    "Legacy": {
+      "seed": 15,
+      "valve": 1111,
+      "hltv": 29
+    },
+    "TYLOO": {
+      "seed": 16,
+      "valve": 1411,
+      "hltv": 36
+    }
+  }
+}
