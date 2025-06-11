@@ -1,0 +1,88 @@
+{
+  "systems": {
+    "valve": "lambda x: x",
+    "hltv": "lambda x: x"
+  },
+  "teams": {
+    "Vitality": {
+      "seed": 1,
+      "valve": 2119,
+      "hltv": 1000
+    },
+    "MOUZ": {
+      "seed": 2,
+      "valve": 1912,
+      "hltv": 571
+    },
+    "Spirit": {
+      "seed": 3,
+      "valve": 1900,
+      "hltv": 540
+    },
+    "G2": {
+      "seed": 4,
+      "valve": 1642,
+      "hltv": 251
+    },
+    "The MongolZ": {
+      "seed": 5,
+      "valve": 1800,
+      "hltv": 387
+    },
+    "Aurora": {
+      "seed": 6,
+      "valve": 1764,
+      "hltv": 370
+    },
+    "Natus Vincere": {
+      "seed": 7,
+      "valve": 1628,
+      "hltv": 294
+    },
+    "Liquid": {
+      "seed": 8,
+      "valve": 1535,
+      "hltv": 172
+    },
+    "Legacy": {
+      "seed": 9,
+      "valve": 1244,
+      "hltv": 60
+    },
+    "Virtus.pro": {
+      "seed": 10,
+      "valve": 1523,
+      "hltv": 134
+    },
+    "paiN": {
+      "seed": 11,
+      "valve": 1343,
+      "hltv": 59
+    },
+    "3DMAX": {
+      "seed": 12,
+      "valve": 1609,
+      "hltv": 115
+    },
+    "FURIA": {
+      "seed": 13,
+      "valve": 1518,
+      "hltv": 125
+    },
+    "FaZe": {
+      "seed": 14,
+      "valve": 1614,
+      "hltv": 167
+    },
+    "Nemiga": {
+      "seed": 15,
+      "valve": 1242,
+      "hltv": 42
+    },
+    "Lynn Vision": {
+      "seed": 16,
+      "valve": 1387,
+      "hltv": 53
+    }
+  }
+}
