@@ -44,15 +44,15 @@
       "valve": 1029,
       "hltv": 35
     },
-    "HEROIC": {
-      "seed": 9,
-      "valve": 1552,
-      "hltv": 117
-    },
     "B8": {
-      "seed": 10,
+      "seed": 9,
       "valve": 1275,
       "hltv": 48
+    },
+    "HEROIC": {
+      "seed": 10,
+      "valve": 1552,
+      "hltv": 117
     },
     "BetBoom": {
       "seed": 11,

@@ -90,13 +90,13 @@ def generate_candidate_combinations(team_stats: dict, results: dict, top_n: int 
     teams = list(team_stats.keys())
     
     # 1. 获取3-0概率最高的4个队伍
-    top_3_0_teams = sorted(teams, key=lambda x: team_stats[x]['3-0'], reverse=True)[:5]
+    top_3_0_teams = sorted(teams, key=lambda x: team_stats[x]['3-0'], reverse=True)[:3]
     
     # 2. 获取0-3概率最高的4个队伍
-    top_0_3_teams = sorted(teams, key=lambda x: team_stats[x]['0-3'], reverse=True)[:5]
+    top_0_3_teams = sorted(teams, key=lambda x: team_stats[x]['0-3'], reverse=True)[:3]
     
     # 3. 获取3-1/3-2概率最高的12个队伍
-    top_adv_teams = sorted(teams, key=lambda x: team_stats[x]['3-1/3-2'], reverse=True)[:12]
+    top_adv_teams = sorted(teams, key=lambda x: team_stats[x]['3-1/3-2'], reverse=True)[:9]
     
     # 4. 生成所有可能的组合
     # 4.1 生成3-0组的组合（4选2）

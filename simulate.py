@@ -543,7 +543,7 @@ def format_results(results: dict[Team, Result], n: int, run_time: float) -> list
 if __name__ == "__main__":
     # 直接使用2025_austin_stage_1.json文件
     file_path = "2025_austin_stage_2.json"
-    n_iterations = 1000000  # 增加迭代次数以获得更准确的结果
+    n_iterations = 50000000  # 增加迭代次数以获得更准确的结果
     n_cores = max(1, cpu_count() - 1)  # 保留一个核心给系统使用
 
     # 运行模拟并打印格式化结果

@@ -13,8 +13,8 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 # 评分系统权重配置
-VRS_WEIGHT = 0.0  # Valve评分系统权重
-HLTV_WEIGHT = 1.0  # HLTV评分系统权重
+VRS_WEIGHT = 1.0  # Valve评分系统权重
+HLTV_WEIGHT = 0.0  # HLTV评分系统权重
 SIGMA = 349.2  # Valve默认sigma值，用于Elo公式计算
 
 @dataclass(frozen=True)
